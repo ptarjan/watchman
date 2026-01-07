@@ -217,10 +217,13 @@ class _Instance:
         deadline = time.time() + self.start_timeout
         while time.time() < deadline:
             try:
-                client = pywatchman.client(sockpath=self.getSockPath())
+                # Use a longer timeout (up to 10 seconds) to avoid flaky failures
+                # on resource-constrained systems like Windows CI
+                timeout = min(10.0, max(1.0, deadline - time.time()))
+                client = pywatchman.client(sockpath=self.getSockPath(), timeout=timeout)
                 self.pid = client.query("get-pid")["pid"]
                 break
-            except pywatchman.SocketConnectError:
+            except (pywatchman.SocketConnectError, pywatchman.SocketTimeout):
                 t, val, tb = sys.exc_info()
                 time.sleep(0.1)
             finally:
